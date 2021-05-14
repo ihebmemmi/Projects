@@ -5,30 +5,62 @@ const livreurs = require("../models/Livreur");
 //const user = require("../Api/User");
 const route = express.Router();
 
-route.post("/", async (req, res) => {
-  const {
-    nom,
-    prenom,
-    genre,
-    date_naissance,
-    email,
-    telephone,
-    imageUrl,
-    etat,
-  } = req.body;
-  let Livreurs = {};
+// register livreur
+route.post("/register", async (req, res) => {
+  try{
+      
+  let sameEmail = await livreurs.find({ email:req.body.email });
+  if (sameEmail.length >= 1) {
+        return res.status(409).json({
+          message: "email already in use",
+        });
+      }
+      const {
+        nom,
+        prenom,
+        genre,
+        email,
+        password,
+        telephone,
+        imageUrl,
+        etat,
+      } = req.body;
+  await bcrypt.hash(password, 8).then((hashedPassword) => {
+  const Livreurs = {};
   Livreurs.nom = nom;
   Livreurs.prenom = prenom;
   Livreurs.genre = genre;
-  Livreurs.date_naissance = date_naissance;
+  Livreurs.password= hashedPassword;
   Livreurs.email = email;
   Livreurs.telephone = telephone;
   Livreurs.imageUrl = imageUrl;
   Livreurs.etat = etat;
 
   let livreursModel = new livreurs(Livreurs);
-  await livreursModel.save();
+  livreursModel.save();
   res.json(livreursModel);
+  });
+  }  
+catch (err) {
+  res.json(err, "err");
+  }
+});
+//login livreur
+route.post("/login", async (req, res) => {
+  try {
+    const email = req.body.email;
+    const password = req.body.password;
+    const user = await livreurs.findByCredentials(email, password);
+    if (!user) {
+      return res
+        .status(401)
+        .json({ error: "Login failed! Check authentication credentials" });
+    }
+    const token = await user.generateAuthToken();
+    res.status(201).json({ user, token });
+  } catch (err) {
+    res.status(400).json({ err: err });
+  }
 });
 
 route.get("/", async (req, res) => {
